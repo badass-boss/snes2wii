@@ -52,6 +52,9 @@
 ;		r23: Bit Counter for interrupt context
 
 
+;		r25- added register for GBPlayer mode
+
+
 #include <avr/io.h>
 
 .lcomm id_status, 24	; reply to 0000 0000 1 (0x00)
@@ -263,6 +266,75 @@ buildAndSendPacket:
 	; Test each button/direciton bit from the controller, and set the
 	;  appropriate bytes in response. SNES bits are active low, GC bits are
 	;  active high.
+	
+	cpi r25, 0x08 ;Hold UP during startup to
+	breq swap1 ;swap Select, X and Y buttons
+	cpi r25, 0x04 ;Hold DOWN during startup to
+	breq swap2 ;rotate Y, B and A buttons on top of previous swap
+	rjmp noswap
+swap1:
+	
+	ldi r19, (1<<4)	; SNES START
+	and r19, r9
+		st z+, r19	; GC START
+	ldi r19, (1<<5)	; SNES SELECT
+	and r19, r9
+		st z+, r19	; GC Y
+	ldi r19, (1<<6) ; SNES Y
+	and r19, r9
+		st z+, r19	; GC X
+	ldi r19, (1<<7) ; SNES B
+	and r19, r9
+		st z+, r19	; GC B
+	ldi r19, (1<<7)	; SNES A
+	and r19, r10
+		st z+, r19	; GC A
+	st z+, r19	; This is the first bit of the 2nd byte. Always 1
+
+	ldi r19, (1<<5)	; SNES L
+	and r19, r10
+		st z+, r19	; GC L
+	ldi r19, (1<<4)	; SNES R
+	and r19, r10
+		st z+, r19	; GC R
+	ldi r19, (1<<6)	; SNES X
+	and r19, r10
+		st z+, r19	; GC Z
+	
+	rjmp ended
+swap2:
+	
+	ldi r19, (1<<4)	; SNES START
+	and r19, r9
+		st z+, r19	; GC START
+	ldi r19, (1<<5)	; SNES SELECT
+	and r19, r9
+		st z+, r19	; GC Y
+	ldi r19, (1<<7)	; SNES A
+	and r19, r10
+		st z+, r19	; GC X
+	ldi r19, (1<<6) ; SNES Y
+	and r19, r9
+		st z+, r19	; GC B
+	ldi r19, (1<<7) ; SNES B
+	and r19, r9
+		st z+, r19	; GC A
+	st z+, r19	; This is the first bit of the 2nd byte. Always 1
+
+	ldi r19, (1<<5)	; SNES L
+	and r19, r10
+		st z+, r19	; GC L
+	ldi r19, (1<<4)	; SNES R
+	and r19, r10
+		st z+, r19	; GC R
+	ldi r19, (1<<6)	; SNES X
+	and r19, r10
+		st z+, r19	; GC Z
+	
+	rjmp ended
+	
+noswap:
+
 	ldi r19, (1<<4)	; SNES START
 	and r19, r9
 		st z+, r19	; GC START
@@ -289,6 +361,9 @@ buildAndSendPacket:
 	ldi r19, (1<<5)	; SNES SELECT
 	and r19, r9
 		st z+, r19	; GC Z
+		
+ended:
+		
 	ldi r19, (1<<3)	; SNES UP
 	and r19, r9
 		st z+, r19	; GC UP
@@ -556,6 +631,9 @@ main:
 	; doing a NES mode read (this works on an SNES controller
 	; too) to check the
 	rcall readNes
+	
+	mov r25, r4	;Added functionality by pressing either UP or DOWN
+	andi r25, 0x0C ;during startup to rotate buttons for GBPlayer
 
 	mov r16, r4
 	andi r16, 0x10
